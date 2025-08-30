@@ -18,21 +18,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test SSH connectivity
+      - name: Write private key
         run: |
-          echo "$SSH_PRIVATE_KEY" > key.pem
+          echo "${SSH_PRIVATE_KEY}" > key.pem
           chmod 600 key.pem
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes \
-              -p "$REMOTE_PORT" -i key.pem "$REMOTE_USER@$REMOTE_HOST" 'echo OK from server'
+          ls -l key.pem
+          ssh-keygen -lf key.pem || true
 
-      - name: Sync files to VPS
-        uses: easingthemes/ssh-deploy@v4
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SOURCE: "./"
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USER }}
-          REMOTE_PORT: ${{ secrets.SSH_PORT }}
-          TARGET: ${{ secrets.SSH_TARGET }}/
-          ARGS: "-az --delete --exclude='.git*' --exclude='.github*'"
-          SSH_ARGS: "-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+      - name: Test SSH connectivity (verbose)
+        shell: bash
+        run: |
+          ssh -vvv \
+            -o StrictHostKeyChecking=no \
+            -o IdentitiesOnly=yes \
+            -o PubkeyAuthentication=yes \
+            -o PreferredAuthentications=publickey \
+            -p "$REMOTE_PORT" -i key.pem \
+            "$REMOTE_USER@$REMOTE_HOST" 'echo OK from server && whoami && pwd'
+
+      - name: Sync files to VPS (rsync)
+        shell: bash
+        run: |
+          export RSYNC_RSH="ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o PreferredAuthentications=publickey -i key.pem"
+          rsync -az --delete \
+            --exclude='.git*' --exclude='.github*' \
+            ./ "$REMOTE_USER@$REMOTE_HOST:$TARGET/"
+
+      - name: Cleanup key
+        if: always()
+        run: |
+          shred -u key.pem || rm -f key.pem
