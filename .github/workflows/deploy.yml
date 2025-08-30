@@ -7,31 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Sync files to VPS
-        uses: easingthemes/ssh-deploy@v4
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SSH_ARGS: "-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
-          SOURCE: "./"
-          EXCLUDE: ".git/,.github/"
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USER }}
-          REMOTE_PORT: ${{ secrets.SSH_PORT }}
-          TARGET: ${{ secrets.SSH_TARGET }}
-name: Deploy to megaforce01.com
-
-on:
-  push:
-    branches: [ "main" ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       REMOTE_HOST: ${{ secrets.SSH_HOST }}
@@ -43,23 +18,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Paso de diagnóstico para validar que la llave abre sesión (con -vvv)
       - name: Test SSH connectivity
         run: |
           echo "$SSH_PRIVATE_KEY" > key.pem
           chmod 600 key.pem
-          ssh -vvv -o StrictHostKeyChecking=no -o IdentitiesOnly=yes \
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes \
               -p "$REMOTE_PORT" -i key.pem "$REMOTE_USER@$REMOTE_HOST" 'echo OK from server'
 
-      # Sincroniza los archivos al VPS vía rsync/SSH
       - name: Sync files to VPS
         uses: easingthemes/ssh-deploy@v4
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-az --delete --exclude='.git*' --exclude='.github*'"
-          SSH_ARGS: "-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
           SOURCE: "./"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USER }}
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: ${{ secrets.SSH_TARGET }}/
+          ARGS: "-az --delete --exclude='.git*' --exclude='.github*'"
+          SSH_ARGS: "-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
