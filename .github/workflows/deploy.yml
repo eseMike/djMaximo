@@ -16,6 +16,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
+          SSH_ARGS: "-o IdentitiesOnly=yes"
           SOURCE: "./"
           EXCLUDE: ".git/, .github/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
